@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Echo Location Maze</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="description" content="Echo Location Maze: encuentra la salida de un laberinto a oscuras usando pulsos de sonido." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='black'/%3E%3Ccircle cx='50' cy='50' r='8' fill='white'/%3E%3Ccircle cx='50' cy='50' r='26' fill='none' stroke='white' stroke-opacity='0.5' stroke-width='3'/%3E%3Ccircle cx='50' cy='50' r='42' fill='none' stroke='white' stroke-opacity='0.25' stroke-width='3'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div class="ui-layer">
+  <div id="hud">
+    <div id="hudLeft">
+      <div id="levelLabel">Nivel 1</div>
+      <div id="energyRow">
+        <span class="energyIcon">⚡</span>
+        <div id="energyBar"><div id="energyFill"></div></div>
+      </div>
+      <div id="statsRow">
+        <span id="timerLabel">00:00</span>
+        <span id="pulseCountLabel">Ecos: 0</span>
+        <span id="keyIcon" class="hidden">🔑</span>
+      </div>
+    </div>
+    <div id="hudButtons">
+      <button id="btnMute" class="iconBtn" aria-label="Silenciar">🔊</button>
+      <button id="btnPause" class="iconBtn" aria-label="Pausa">❚❚</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <div id="startScreen" class="overlay">
+    <h1>ECHO LOCATION MAZE</h1>
+    <p>La pantalla está a oscuras. Controlas un punto de luz que emite pulsos de sonido al tocar la pantalla, revelando por un instante los muros cercanos.</p>
+    <p>Memoriza la estructura del laberinto y encuentra la salida antes de que se agote tu energía.</p>
+    <p><strong>Joystick</strong> (abajo a la izquierda): moverte.<br/><strong>Toca en cualquier otro lugar</strong> (o pulsa Espacio): emitir un pulso de eco — cada pulso consume energía.</p>
+    <p class="dangerText">Desde el nivel 2: una llave abre la salida y algo te empieza a perseguir en la oscuridad. Un destello rojo significa peligro.</p>
+    <button id="btnStart" class="primaryBtn">Toca para comenzar</button>
+    <div class="dim">Usa auriculares para una mejor experiencia de audio.</div>
+  </div>
+
+  <div id="pauseOverlay" class="overlay hidden">
+    <h1>PAUSA</h1>
+    <button id="btnResume" class="primaryBtn">Continuar</button>
+  </div>
+
+  <div id="levelCompleteOverlay" class="overlay hidden">
+    <h1>NIVEL SUPERADO</h1>
+    <div id="starsDisplay" class="stars">★★★</div>
+    <p id="statsText">Tiempo: 00:00   ·   Ecos usados: 0</p>
+    <p id="bestStarsText" class="dim" style="margin-top:-6px;">Mejor en este nivel: ★★★</p>
+    <button id="btnContinue" class="primaryBtn">Siguiente nivel →</button>
+  </div>
+
+  <div id="gameOverOverlay" class="overlay hidden">
+    <h1 class="dangerTitle">SIN LUZ</h1>
+    <p id="gameOverMessage">Te quedaste sin energía.</p>
+    <button id="btnRetry" class="primaryBtn">Reintentar nivel</button>
+  </div>
+</div>
+
+<script src="js/maze.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/input.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
