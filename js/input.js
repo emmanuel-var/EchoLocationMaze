@@ -4,7 +4,9 @@
  * Safari iOS, Chrome/Android y escritorio con mouse):
  *
  *  - Joystick virtual (zona inferior izquierda): controla el movimiento
- *    del punto de luz. Aparece solo mientras se usa.
+ *    del punto de luz. Solo aparece en dispositivos táctiles (celulares
+ *    o tablets); en computadoras con mouse/teclado no se dibuja ni
+ *    intercepta clics, porque ahí el movimiento se hace con teclado.
  *  - Cualquier otro toque / clic (o la barra espaciadora / clic con mouse
  *    fuera del joystick): emite un pulso de eco desde la posición actual
  *    del jugador.
@@ -15,8 +17,25 @@
 (function (global) {
   'use strict';
 
+  // Detecta si el dispositivo es táctil (celular/tablet) en vez de una
+  // computadora con mouse. Se basa en el tipo de puntero primario y en si
+  // el dispositivo tiene "hover" (mouse) disponible; con fallback a
+  // ontouchstart/maxTouchPoints para navegadores que no soportan matchMedia.
+  function detectTouchDevice() {
+    try {
+      if (global.matchMedia) {
+        const coarse = global.matchMedia('(pointer: coarse)').matches;
+        const noHover = global.matchMedia('(hover: none)').matches;
+        if (coarse && noHover) return true;
+        if (!coarse && !noHover) return false;
+      }
+    } catch (e) { /* noop */ }
+    return ('ontouchstart' in global) || (navigator.maxTouchPoints > 0);
+  }
+
   function createInputSystem(canvas, opts) {
     const onPulseRequested = (opts && opts.onPulseRequested) || function () {};
+    const isTouchDevice = detectTouchDevice();
 
     let joystick = {
       active: false,
@@ -33,10 +52,24 @@
       return Math.min(140, Math.max(90, canvas.clientWidth * 0.18));
     }
 
-    function inJoystickZone(x, y) {
+    // Posición fija del joystick (esquina inferior izquierda). Al ser fija
+    // y dibujarse siempre, el jugador puede verla desde el inicio en vez
+    // de tener que "descubrirla" tocando a ciegas.
+    function anchorPos() {
       const r = zoneRadius();
-      const margin = r * 1.4;
-      return x < margin + 20 && y > canvas.clientHeight - margin - 20;
+      const margin = Math.max(24, r * 0.35);
+      return {
+        x: margin + r,
+        y: canvas.clientHeight - margin - r
+      };
+    }
+
+    function inJoystickZone(x, y) {
+      if (!isTouchDevice) return false;
+      const a = anchorPos();
+      const r = zoneRadius();
+      const hitR = r * 1.5; // área táctil más amplia que el círculo visual
+      return Math.hypot(x - a.x, y - a.y) <= hitR;
     }
 
     function getPos(e) {
@@ -44,14 +77,15 @@
       return { x: e.clientX - rect.left, y: e.clientY - rect.top };
     }
 
-    function startJoystick(x, y, pointerId) {
+    function startJoystick(pointerId) {
+      const a = anchorPos();
       joystick.active = true;
       joystick.pointerId = pointerId;
       joystick.radius = zoneRadius();
-      joystick.baseX = x;
-      joystick.baseY = y;
-      joystick.knobX = x;
-      joystick.knobY = y;
+      joystick.baseX = a.x;
+      joystick.baseY = a.y;
+      joystick.knobX = a.x;
+      joystick.knobY = a.y;
     }
 
     function updateJoystick(x, y) {
@@ -83,7 +117,8 @@
       })();
       const { x, y } = getPos(e);
       if (!joystick.active && inJoystickZone(x, y)) {
-        startJoystick(x, y, e.pointerId);
+        startJoystick(e.pointerId);
+        updateJoystick(x, y);
       } else {
         onPulseRequested();
       }
@@ -131,24 +166,67 @@
       return keyboardVec();
     }
 
+    // Dibuja 4 pequeñas flechas (arriba/derecha/abajo/izquierda) dentro del
+    // círculo del joystick para dejar claro que sirve para moverse.
+    function drawArrowHints(ctx, cx, cy, r) {
+      const size = r * 0.13;
+      const dist = r * 0.6;
+      const dirs = [
+        { dx: 0, dy: -1 },
+        { dx: 1, dy: 0 },
+        { dx: 0, dy: 1 },
+        { dx: -1, dy: 0 }
+      ];
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < dirs.length; i++) {
+        const d = dirs[i];
+        const px = cx + d.dx * dist;
+        const py = cy + d.dy * dist;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(Math.atan2(d.dy, d.dx) + Math.PI / 2);
+        ctx.beginPath();
+        ctx.moveTo(0, -size);
+        ctx.lineTo(size * 0.85, size * 0.8);
+        ctx.lineTo(-size * 0.85, size * 0.8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // El joystick solo se dibuja en dispositivos táctiles (celular/tablet).
+    // Se muestra siempre en su posición fija para que sea descubrible desde
+    // el inicio, no solo mientras se está usando.
     function drawJoystick(ctx) {
-      if (!joystick.active) return;
+      if (!isTouchDevice) return;
+      const a = anchorPos();
+      const r = zoneRadius();
+      const knobX = joystick.active ? joystick.knobX : a.x;
+      const knobY = joystick.active ? joystick.knobY : a.y;
+
       ctx.save();
-      ctx.globalAlpha = 0.35;
+      ctx.globalAlpha = joystick.active ? 0.4 : 0.22;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(joystick.baseX, joystick.baseY, joystick.radius, 0, Math.PI * 2);
+      ctx.arc(a.x, a.y, r, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.globalAlpha = 0.6;
+
+      if (!joystick.active) {
+        ctx.globalAlpha = 0.3;
+        drawArrowHints(ctx, a.x, a.y, r);
+      }
+
+      ctx.globalAlpha = joystick.active ? 0.65 : 0.32;
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(joystick.knobX, joystick.knobY, joystick.radius * 0.35, 0, Math.PI * 2);
+      ctx.arc(knobX, knobY, r * 0.35, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
 
-    return { getMoveVector, drawJoystick };
+    return { getMoveVector, drawJoystick, isTouchDevice };
   }
 
   global.InputSystem = { create: createInputSystem };
